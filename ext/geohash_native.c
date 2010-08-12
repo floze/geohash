@@ -1,4 +1,4 @@
-// geohash-native.c
+// geohash_native.c
 // (c) 2008 David Troy
 // dave@roundhousetech.com
 // 
@@ -28,15 +28,22 @@
 #include "ruby.h"
 #include <ctype.h>
 
-static VALUE rb_cGeoHash;
+static VALUE rb_mGeoHash;
 
 #define BASE32	"0123456789bcdefghjkmnpqrstuvwxyz"
 
+static void refine_interval(double *interval, char cd, char mask) {
+	if (cd&mask)
+		interval[0] = (interval[0] + interval[1])/2;
+	else
+		interval[1] = (interval[0] + interval[1])/2;
+}
+
 static void decode_geohash_bbox(char *geohash, double *lat, double *lon) {
-	int i, j, hashlen;
+	int i, j, hashlen, is_even=1;
 	double lat_err, lon_err;
-	char c, cd, mask, is_even=1;
-	static char bits[] = {16,8,4,2,1};
+	char c, cd, mask;
+	char bits[] = {16,8,4,2,1};
 	
 	lat[0] = -90.0;  lat[1] = 90.0;
 	lon[0] = -180.0; lon[1] = 180.0;
@@ -50,10 +57,10 @@ static void decode_geohash_bbox(char *geohash, double *lat, double *lon) {
 			mask = bits[j];
 			if (is_even) {
 				lon_err /= 2;
-				lon[!(cd&mask)] = (lon[0] + lon[1])/2;
+				refine_interval(lon, cd, mask);
 			} else {
 				lat_err /= 2;
-				lat[!(cd&mask)] = (lat[0] + lat[1])/2;
+				refine_interval(lat, cd, mask);
 			}
 			is_even = !is_even;
 		}
@@ -163,50 +170,12 @@ static VALUE decode(VALUE self, VALUE str)
 	return ary;
 }
 
-// Given a particular geohash string, a direction, and a final length
-// Compute a neighbor using base32 lookups, recursively when necessary
-void get_neighbor(char *str, int dir, int hashlen)
-{
-	/* Right, Left, Top, Bottom */
-
-	static char *neighbors[] = { "bc01fg45238967deuvhjyznpkmstqrwx",
-														 	 "238967debc01fg45kmstqrwxuvhjyznp",
-														 	 "p0r21436x8zb9dcf5h7kjnmqesgutwvy",
-														   "14365h7k9dcfesgujnmqp0r2twvyx8zb" };
-												
-	static char *borders[] = { "bcfguvyz", "0145hjnp", "prxz", "028b" };
-
-	char last_chr, *border, *neighbor;
-	int index = ( 2 * (hashlen % 2) + dir) % 4;
-	neighbor = neighbors[index];
-	border = borders[index];
-	last_chr = str[hashlen-1];
-	if (strchr(border,last_chr))
-		get_neighbor(str, dir, hashlen-1);
-	str[hashlen-1] = BASE32[strchr(neighbor, last_chr)-neighbor];
-}
-
-// Acts as Ruby API wrapper to get_neighbor function, which is recursive and does nasty C things
-static VALUE calculate_adjacent(VALUE self, VALUE geohash, VALUE dir)
-{
-	char *str;
-	VALUE ret_val;
-	Check_Type(geohash, T_STRING);
-	Check_Type(dir, T_FIXNUM);
-	str = RSTRING_PTR(geohash);
-	if (!strlen(str)) return Qnil;
-	ret_val = rb_str_new(str,strlen(str));
-	get_neighbor(RSTRING_PTR(ret_val), NUM2INT(dir), strlen(str));
-	return ret_val;
-}
-
 void Init_geohash_native()
 {
-	rb_cGeoHash = rb_define_class("GeoHash", rb_cObject);
-	rb_define_singleton_method(rb_cGeoHash, "decode_bbox", decode_bbox, 1);
-	rb_define_singleton_method(rb_cGeoHash, "decode_base", decode, 1);
-	rb_define_singleton_method(rb_cGeoHash, "encode_base", encode, 3);
-	rb_define_singleton_method(rb_cGeoHash, "calculate_adjacent", calculate_adjacent, 2);
+	rb_mGeoHash = rb_define_module("GeoHash");
+	rb_define_method(rb_mGeoHash, "decode_bbox_base", decode_bbox, 1);
+	rb_define_method(rb_mGeoHash, "decode_base", decode, 1);
+	rb_define_method(rb_mGeoHash, "encode_base", encode, 3);
 }
 
 // end
