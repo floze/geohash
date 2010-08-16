@@ -8,8 +8,7 @@ class Float
 end
 
 module GeoHash
-  
-  VERSION = '1.0.1'
+  VERSION = '1.0.2'
   
   # Encode latitude and longitude to a geohash with precision digits
   def encode(lat, lon, precision=10)
@@ -26,4 +25,6 @@ module GeoHash
   def decode_bbox(geohash)
     decode_bbox_base(geohash)
   end
+  
+  extend self
 end
