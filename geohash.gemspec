@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name     = "geohash"
-  s.version  = '1.0.1'
+  s.version  = '1.0.2'
   s.date     = "2008-11-27"
   s.summary  = "GeoHash Library for Ruby, per http://geohash.org implementation."
   s.email    = "dave@roundhousetech.com"
